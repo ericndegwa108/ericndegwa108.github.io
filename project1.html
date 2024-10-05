@@ -53,12 +53,259 @@
         }
     </script>
 
-    <div class="bg-white-500 w-full h-screen flex flex-col items-center p-12 gap-4">
+    <div class="bg-white-500 w-full h-screen flex flex-col items-center p-24 gap-4">
             
         <h1 class="font-bold text-3xl">Model Development in Python</h1>
 
-           
+        <p class="font-medium text-md text-center">The following a is meant to build a model using by training it using travel training and test data.
+        Customers, specially nowadays, use specific keywords when looking for travel experiences like 'cheap flights' or even, specific airlines like 'Air France'. Therefore, this paper's main goal is to get the best matches for keywords and other and categories to
+        train a high performing model.Additionally, it includes the evaluation of search engines performance relative to the number of click achieved from specific keywords. Furthermore, several models were trained to achieve the best and top performer: DecisionTreeRegressor.</p>   
 
+        <h2 class="text-xl font-bold">Import and Data Check</h2>
+
+        <p class="font-medium text-md text-center">The provided code below is a data preparation and exploration process for a model development project. Starting by importing necessary libraries for data manipulation, model building, and visualization. The code sets up the environment by suppressing warnings, importing additional libraries as needed, and adjusting pandas.
+            Next, the import of training and testing data from CSV files, assigned to DataFrames 'df_train' and 'df_test' respectively, setting 'entry_id' as the index column. Then, the addition of a 'set' column to differentiate between training and testing datasets before concatenating them into a single DataFrame 'df_full' for missing value analysis and feature engineering.
+            Finally, the code displays the first 5 rows of the combined dataset 'df_full' to provide an initial glimpse of the data. </p>
+
+        <pre>
+            <code>
+                ## importing libraries ##
+
+# for this template
+import numpy             as np                         # mathematical essentials
+import pandas            as pd                         # data science essentials
+import sklearn.linear_model                            # linear models
+from sklearn.model_selection import train_test_split   # train/test split
+from sklearn.linear_model import LinearRegression      # Linear Regressions
+from sklearn.metrics import mean_squared_error         # mean squared error 
+from sklearn.preprocessing import StandardScaler       # Standard Scaler
+import warnings                                        # warnings from code
+from sklearn.tree import DecisionTreeRegressor         # regression trees
+from sklearn.model_selection import RandomizedSearchCV # hyperparameter tuning
+from sklearn.neighbors import KNeighborsRegressor      # KNN
+import matplotlib.pyplot as plt                        # visualizations
+
+
+# suppressing warnings
+warnings.filterwarnings(action = 'ignore')
+
+#!###############################!#
+#!# import additional libraries #!#
+#!###############################!#
+# import whatever you need
+
+
+# setting pandas print options (optional)
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
+
+
+
+
+## importing data ##
+
+# reading modeling data into Python
+modeling_data = './train_.xlsx'
+
+# calling this df_train
+df_train = pd.read_excel(io         = modeling_data,
+                         index_col  = 'entry_id')
+
+
+
+# reading testing data into Python
+testing_data = './test_.xlsx'
+
+# calling this df_test
+df_test = pd.read_excel(io         = testing_data,
+                        header     = 0,
+                        index_col  = 'entry_id')
+
+
+# concatenating datasets together for mv analysis and feature engineering
+df_train['set'] = 'Not Kaggle'
+df_test ['set'] = 'Kaggle'
+
+# concatenating both datasets together for mv and feature engineering
+df_full = pd.concat(objs = [df_train, df_test],
+                    axis = 0,
+                    ignore_index = False)
+
+
+
+
+# checking data
+df_full.head(n = 5)
+            </code>
+        </pre> 
+        
+        <h2 class="text-xl font-bold">Feature Engineering</h2>
+        
+        <p class="font-medium text-md text-center">
+            In this section, the code is imputing missing 'Match Type' values in the DataFrame 'df_full' by filling them with "Broad" as the default value. Then, it creates new columns/features 'Broad', 'Advanced', 'Standard', and 'Exact' with initial values set to 0. We then iterated through each row in 'df_full' to extract the 'Match Type' value and assign corresponding binary values (1 or 0) to the newly created columns based on specific conditions. If the 'Match Type' matches "Broad", "Advanced", "Standard", or "Exact". The code then, set the respective column to 1, 
+            indicating the type of match for each row in the dataset. This code segment effectively categorizes the 'Match Type' information into separate columns, creating additional features.
+        </p>
+
+        <h3 class="text-lg font-bold">Feature 1</h3>
+
+        <pre>
+            <code>
+                #Imputing missing Match Type values
+df_full['Match Type'].fillna("Broad", inplace=True)
+
+#######################################################
+df_full['Broad'] = 0 #creating empty columns to fill in
+df_full['Advanced'] = 0
+df_full['Standard'] = 0
+df_full['Exact'] = 0
+
+
+for index, row in df_full.iterrows():
+    match = row['Match Type']  #using Match Type as row
+    
+    #conditions that must be matched
+    if match == "Broad":
+        df_full.at[index, 'Broad'] = 1   
+
+    elif match == "Advanced":
+        df_full.at[index, 'Advanced'] = 1
+
+    elif match == "Standard":
+        df_full.at[index, 'Standard'] = 1
+        
+    elif match == "Exact":
+        df_full.at[index, 'Exact'] = 1
+
+#making all unique Match Types - as factor(numeric)
+df_full['match_num'] = pd.factorize(df_full['Match Type'])[0]
+            </code>
+        </pre>
+
+        <h3 class="text-lg font-bold text-center">Feature 2</h3>
+
+        <p class="font-medium text-md text-center">
+            Now, the code engineers new features from column 'Publisher Name' in the DataFrame 'df_full'; 'Google', 'Yahoo', 'MSN', 'Overture', and 'Global' with initial values set to 0. By iterating through each row in the DataFrame, the code extracts the publisher name from the 'Publisher Name' column. Based on specific conditions,
+            if a certain keyword ('Google', 'Yahoo', 'MSN', 'Overture', or 'Global') is found within the publisher name, the code sets the corresponding column to 1, indicating the presence of that particular publisher for each row in the dataset. This effectively categorizes publisher information into binary results.
+        </p>
+
+        <pre>
+            <code>
+                df_full['Google'] = 0 #creating empty columns to fill in
+df_full['Yahoo'] = 0
+df_full['MSN'] = 0
+df_full['Overture'] = 0
+df_full['Global'] = 0
+
+
+for index, row in df_full.iterrows():
+    company = row['Publisher Name']  #row as a Publisher Name iterration
+    
+    #conditions that must be matched
+    if "Google" in company:
+        df_full.at[index, 'Google'] = 1
+
+    if "Yahoo" in company:
+        df_full.at[index, 'Yahoo'] = 1
+
+    if "MSN" in company:
+        df_full.at[index, 'MSN'] = 1
+        
+    if "Overture" in company:
+        df_full.at[index, 'Overture'] = 1
+        
+    if "Global" in company:
+        df_full.at[index, 'Global'] = 1
+        
+        
+#making all unique Publisher Names - as factor(numeric)
+df_full['pub_num'] = pd.factorize(df_full['Publisher Name'])[0]
+            </code>
+        </pre>
+
+        <h3 class="text-lg font-bold text-center">Feature 3</h3>
+
+        <p class="font-medium text-md text-center">
+            Now the code is creating new features from the 'Category' column in the DataFrame 
+            'df_full'. Where the code creates new columns for specific categories such as 'uncategorized', 'flight_cat', 'airline_cat',
+             'airline_in_cat', 'airfrance_cat', 'airfare_cat', 'airgeneral_cat', 'airlinegeneral_cat', and 'france_cat' with initial values 
+             set to 0. By iterating through each row in the DataFrame, the code extracts the category information from the 'Category' column.
+              Based on specific conditions and keywords within the category name, we set the corresponding category column to 1, indicating the
+               presence of that particular category for each row in the dataset.
+              Furthermore, the code identifies fields for summing and calculate the sum of specified columns for each row. A new column 'other_cat' is created based o
+           whether the sum of category columns is 0, assigning a value of 1 if no specific category matches are found. This creates binary entries of 0 and 1 in the column entries.
+        </p>
+
+        <pre>
+            <code>
+                # Category Name
+##########################################################
+df_full['uncategorized'] = 0  #creating empty columns to fill in
+df_full['flight_cat'] = 0
+df_full['airline_cat'] = 0
+df_full['airline_in_cat'] = 0
+df_full['airfrance_cat'] = 0
+df_full['airfare_cat'] = 0
+df_full['airgeneral_cat'] = 0
+df_full['airlinegeneral_cat'] = 0
+df_full['france_cat'] = 0
+df_full['flight_cat'] = 0
+
+
+
+
+
+for index, row in df_full.iterrows():
+    category = row['Category']  #row as a Category iterration
+    
+    #conditions that must be matched
+    if "uncategorized" in category.lower():
+        df_full.at[index, 'uncategorized'] = 1
+        
+    if category.lower() == "flight":
+        df_full.at[index, 'flight_cat'] = 1
+
+    if category.lower() == "airline":
+        df_full.at[index, 'airline_cat'] = 1
+        
+    if "airline" in category.lower():
+        df_full.at[index, 'airline_in_cat'] = 1
+        
+    if "airfrance" in category.lower():
+        df_full.at[index, 'airfrance_cat'] = 1
+        
+    if "airfare" in category.lower():
+        df_full.at[index, 'airfare_cat'] = 1
+        
+    if category.lower() == "airgeneral":
+        df_full.at[index, 'airgeneral_cat'] = 1
+        
+    if category.lower() == "airlinegeneral":
+        df_full.at[index, 'airlinegeneral_cat'] = 1
+        
+    if "france" in category.lower():
+        df_full.at[index, 'france_cat'] = 1
+        
+    if "flight" in category.lower():
+        df_full.at[index, 'flight_cat'] = 1
+
+
+#Identifying fields for summing
+columns_to_sum = ['uncategorized', 'flight_cat','airline_cat', 'airline_in_cat',
+                  'airfrance_cat', 'airfare_cat','airgeneral_cat', 'airlinegeneral_cat',
+                  'france_cat', 'flight_cat']
+
+#Calculating the sum of the specified columns for each row
+row_sums = df_full[columns_to_sum].sum(axis=1)
+
+#Creating a new column based on whether the row_sums is 0
+df_full['other_cat'] = (row_sums == 0).astype(int)
+
+#making all unique Cetegories - as factor(numeric)
+df_full['cat_num'] = pd.factorize(df_full['Category'])[0]
+            </code>
+        </pre>
+        
     </div>
 </body>
 
